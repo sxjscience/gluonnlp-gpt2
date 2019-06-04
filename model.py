@@ -3,9 +3,9 @@ import numpy as np
 from mxnet.gluon import Block, HybridBlock
 from mxnet.gluon import nn
 from gluonnlp.attention_cell import DotProductAttentionCell, MultiHeadAttentionCell, _masked_softmax
+from gluonnlp.block import GELU
 
-
-class GPT2SelfAttentionLayer(HybridBlock):
+class GPT2SelfAttentionLayer(Block):
     def __init__(self, units, num_heads, dropout=0.0,
                  weight_initializer=mx.init.Normal(0.02), bias_initializer='zeros', prefix=None, params=None):
         """
@@ -36,48 +36,47 @@ class GPT2SelfAttentionLayer(HybridBlock):
                                       weight_initializer=weight_initializer,
                                       bias_initializer=bias_initializer)
 
-    def forward(self, data, states, mask=None):
-        batch_size = data.shape[0]
-        seq_length = data.shape[1]
-        prev_key, _ = states
-        prev_seq_length = prev_key.shape[1]
-        data_pos = mx.nd.arange(prev_seq_length, prev_seq_length + seq_length, ctx=data.context, dtype=data.dtype)
-        all_pos = mx.nd.arange(seq_length + prev_seq_length, ctx=data.context, dtype=data.dtype)
-        if mask is None:
-            mask = mx.nd.broadcast_lesser_equal(all_pos.reshape((1, -1)), data_pos.reshape((-1, 1)))
-            mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size)
-        return super(GPT2SelfAttentionLayer, self).forward(data, states, mask)
-
-
-    def hybrid_forward(self, F, data, states, mask):
+    def forward(self, data, states=None):
         """
 
         Parameters
         ----------
-        F
-        data : mx.nd.NDarray or mx.sym.Symbol
+        data : mx.nd.NDarray
             The input data, should have shape (batch_size, seq_len, in_dim)
-        states : list of NDArray or list of Symbol
+        states : list of NDArray or None
             The states, contains the previous encoded key/values
             prev_key (batch_size * num_heads, ele_units, past_seq_len),
             prev_value (batch_size * num_heads, ele_units, past_seq_len)
-        mask : NDArray or Symbol
-            (batch_size, seq_len, past_seq_len + seq_len)
+            None means no previous states
+
         Returns
         -------
-        out : mx.nd.NDArray or mx.sym.Symbol
-        new_states : list
+
         """
-        prev_key, prev_value = states
+        batch_size = data.shape[0]
+        seq_length = data.shape[1]
+        # Generate mask
+        if states is not None:
+            prev_key, prev_value = states
+            prev_seq_length = prev_key.shape[-1]
+            data_pos = mx.nd.arange(prev_seq_length, prev_seq_length + seq_length, ctx=data.context, dtype=data.dtype)
+            all_pos = mx.nd.arange(seq_length + prev_seq_length, ctx=data.context, dtype=data.dtype)
+            mask = mx.nd.broadcast_lesser_equal(all_pos.reshape((1, -1)), data_pos.reshape((-1, 1)))
+            mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size)
+        else:
+            prev_key, prev_value, mask = None, None, None
+
+        # Multi-head attention
+        F = mx.nd
         qkv = self._multi_head_qkv_proj(data)  # Shape (batch_size, seq_len, 3 * units)
         qkv = F.swapaxes(qkv, 1, 2)  # Shape (batch_size, 3 * units, seq_len)
-        query, key, value = F.split(qkv, num_outputs=3, axis=1) # Each has shape (batch_size, units, seq_len)
+        query, key, value = F.split(qkv, num_outputs=3, axis=1)  # Each has shape (batch_size, units, seq_len)
         # Map each to have shape (batch_size * num_head, ele_units, seq_len)
         query = query.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
         key = key.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
         value = value.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
         query = F.contrib.div_sqrt_dim(F.swapaxes(query, 1, 2))  # Shape(batch_size * num_heads, seq_len, ele_units)
-        key = F.concat(prev_key, key, dim=2)   # Shape (batch_size * num_heads, all_len, ele_units)
+        key = F.concat(prev_key, key, dim=2)  # Shape (batch_size * num_heads, all_len, ele_units)
         value = F.concat(prev_value, value, dim=2)
         att_score = F.batch_dot(query, key, transpose_b=True)  # Shape(batch_size * num_heads, seq_len, all_len)
         att_weights = self._dropout_layer(_masked_softmax(F, att_score, mask, np.float32))
@@ -89,10 +88,34 @@ class GPT2SelfAttentionLayer(HybridBlock):
 
 
 class GPT2FFNLayer(HybridBlock):
-    def __init__(self, units, hidden_size, dropout=0.0,
+    def __init__(self, units, hidden_size,
                  weight_initializer=mx.init.Normal(0.02), bias_initializer='zeros', prefix=None, params=None):
         super(GPT2FFNLayer, self).__init__(prefix=prefix, params=params)
-        
+        self._units = units
+        self._hidden_size = hidden_size
+        with self.name_scope():
+            self._hidden_map = nn.Dense(flatten=False, units=hidden_size,
+                                        weight_initializer=weight_initializer, bias_initializer=bias_initializer)
+            self._out_map = nn.Dense(flatten=False, units=units,
+                                     weight_initializer=weight_initializer, bias_initializer=bias_initializer)
+            self._act = GELU()
+
+    def hybrid_forward(self, F, data):
+        """
+
+        Parameters
+        ----------
+        F
+        data : NDArray or Symbol
+            Shape (batch_size, seq_len, in_units)
+
+        Returns
+        -------
+        out : NDArray or Symbol
+            Shape (batch_size, seq_len, units)
+        """
+        out = self._out_map(self._act(self._hidden_map(data)))
+        return out
 
 
 class GPT2Model(Block):
@@ -126,9 +149,29 @@ class GPT2Model(Block):
         with self.name_scope():
             self._pos_embed = nn.Embedding(input_dim=max_seq_len, output_dim=embed_dim, name='pos_embed_')
             self._embed = nn.Embedding(input_dim=vocab_size, output_dim=embed_dim, name='embed_')
-            self._self_attention_layers = nn.HybridSequential()
-            self._
+            self._self_attention_layers = nn.Sequential()
+            self._ffn_layers = nn.HybridSequential()
+            self._attn_ln = nn.HybridSequential()
+            self._ffn_ln = nn.HybridSequential()
             for i in range(num_layers):
                 self._self_attention_layers.add(GPT2SelfAttentionLayer(units=units, num_heads=num_heads,
                                                                        dropout=dropout,
-                                                                       prefix='self_attn_l{}_'.format(i)))
+                                                                       prefix='self_attn{}_'.format(i)))
+                self._ffn_layers.add(GPT2FFNLayer(units=units, hidden_size=units * 4, prefix='ffn{}_'.format(i)))
+                self._attn_ln.add(nn.LayerNorm(prefix='attn_ln{}_'.format(i)))
+                self._ffn_ln.add(nn.LayerNorm(prefix='ffn_ln{}_'.format(i)))
+
+    def forward(self, data, states=None):
+        """
+
+        Parameters
+        ----------
+        data
+        states
+
+        Returns
+        -------
+        out
+        new_states
+        """
+        new_states = []
