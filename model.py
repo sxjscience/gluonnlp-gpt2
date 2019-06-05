@@ -207,3 +207,11 @@ class GPT2Model(Block):
         out = self._final_ln(out)
         logits = self._logits_proj(out)
         return logits, new_states
+
+
+def GPT2_117M():
+    return GPT2Model(units=768, vocab_size=50257, max_seq_len=1024, num_heads=12, num_layers=12)
+
+
+def GPT2_345M():
+    return GPT2Model(units=1024, vocab_size=50257, max_seq_len=1024, num_heads=16, num_layers=24)
