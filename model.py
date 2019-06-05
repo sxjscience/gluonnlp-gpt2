@@ -109,7 +109,6 @@ class GPT2FFNLayer(HybridBlock):
             self._out_map = nn.Dense(flatten=False, units=units,
                                      weight_initializer=weight_initializer, bias_initializer=bias_initializer)
             self._act = GELU()
-            self._act._support_erf = False
 
     def hybrid_forward(self, F, data):
         """
@@ -258,4 +257,6 @@ def load_pretrained_GPT2(model_name='117M', ctx=None):
     else:
         raise NotImplementedError('{} is not found! Try "load_pretrained_GPT2(\'117M\')" or '
                                   '"load_pretrained_GPT2(\'345M\')"')
+    for i in range(model._num_layers):
+        model._ffn_layers[i]._act._support_erf = False
     return model, vocab, tokenizer, detokenizer
