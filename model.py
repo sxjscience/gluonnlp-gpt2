@@ -149,9 +149,9 @@ class GPT2Model(Block):
         self._num_layers = num_layers
         self._num_heads = num_heads
         with self.name_scope():
-            self._pos_embed = nn.Embedding(input_dim=max_seq_len, output_dim=units, name='pos_embed_',
+            self._pos_embed = nn.Embedding(input_dim=max_seq_len, output_dim=units, prefix='pos_embed_',
                                            weight_initializer=mx.init.Normal(0.01))
-            self._embed = nn.Embedding(input_dim=vocab_size, output_dim=units, name='embed_',
+            self._embed = nn.Embedding(input_dim=vocab_size, output_dim=units, prefix='embed_',
                                        weight_initializer=mx.init.Normal(0.02))
             self._logits_proj = nn.Dense(units=vocab_size, in_units=units, use_bias=False,
                                          params=self._embed.params)
