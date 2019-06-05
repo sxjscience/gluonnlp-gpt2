@@ -19,5 +19,5 @@ def test_gpt2_transformer():
     for lhs, rhs in zip(indices, gt_gpt2_idx):
         assert lhs == rhs
 
-    recovered_sentence = detokenizer([vocab.idx_to_token(i) for i in indices])
+    recovered_sentence = detokenizer([vocab.idx_to_token[i] for i in indices])
     assert recovered_sentence == s
