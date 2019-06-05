@@ -84,9 +84,11 @@ class GPT2SelfAttentionLayer(Block):
         key = mx.nd.swapaxes(key, 1, 2)
         value = mx.nd.swapaxes(value, 1, 2)
         if prev_key is not None:
-            key = mx.nd.concat(prev_key, key, dim=1)  # Shape (batch_size * num_heads, all_len, ele_units)
+            key = mx.nd.concat(prev_key.reshape((-1, 0, 0), reverse=True),
+                               key, dim=1)  # Shape (batch_size * num_heads, all_len, ele_units)
         if prev_value is not None:
-            value = mx.nd.concat(prev_value, value, dim=1)
+            value = mx.nd.concat(prev_value.reshape((-1, 0, 0), reverse=True),
+                                 value, dim=1)
         out, _ = self._base_attn_cell(query, key, value, mask)  # Shape (batch_size * num_heads, all_len, ele_units)
         out = mx.nd.transpose(out.reshape((-1, self._num_heads, 0, 0), reverse=True),
                               axes=(0, 2, 1, 3)).reshape((0, 0, -1))
