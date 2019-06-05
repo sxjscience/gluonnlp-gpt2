@@ -93,4 +93,8 @@ sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=d
 
 unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
 samples, scores, valid_length = sampler(unconditional_inputs, None)
-print(samples)
+samples = samples.asnumpy()
+valid_length = valid_length.asnumpy()
+
+generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, 0, :valid_length[0, 0]]])
+print(generated_string)
