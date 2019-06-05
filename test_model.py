@@ -8,3 +8,5 @@ def test_pretrained_gpt2():
     model.initialize(ctx=mx.gpu())
     model.hybridize()
     print(model)
+
+test_pretrained_gpt2()
