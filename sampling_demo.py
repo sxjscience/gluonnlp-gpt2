@@ -1,9 +1,14 @@
 import mxnet as mx
 import numpy as np
+import random
 import gluonnlp as nlp
 import argparse
 import re
 from model import load_pretrained_GPT2
+
+random.seed(123)
+mx.random.seed(123)
+np.random.seed(123)
 
 def parse_ctx(ctx_args):
     ctx = re.findall('([a-z]+)(\d*)', ctx_args)
@@ -130,6 +135,8 @@ if __name__ == '__main__':
         for i in range(args.num):
             print('-------- Begin Sample {} ---------'.format(i))
             samples, scores, valid_length = sampler(cond_init_input, cond_init_states)
+            samples = samples.asnumpy()
+            valid_length = valid_length.asnumpy()
             generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, 0, :valid_length[0, 0]]])
             if initial_tokens.shape[1] > 1:
                 generated_string = detokenizer(vocab.idx_to_token[ele] for ele in initial_tokens.asnumpy()[0, :-1])\
