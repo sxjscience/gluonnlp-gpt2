@@ -11,6 +11,7 @@ def convert_vocab_bpe(src_dir, dst_dir):
         token_to_idx = json.load(f)
         token_to_idx = {k : int(v) for k, v in token_to_idx.items()}
     idx_to_token = {int(v): k for k, v in token_to_idx.items()}
+    idx_to_token = [idx_to_token[i] for i in range(len(idx_to_token))]
     vocab = Vocab(unknown_token=None)
     vocab._idx_to_token = idx_to_token
     vocab._token_to_idx = token_to_idx
