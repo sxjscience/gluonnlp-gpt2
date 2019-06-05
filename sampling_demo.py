@@ -96,8 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', help='The specific model we need to convert', type=str, choices=['117M', '345M'])
     parser.add_argument('--unconditional', action='store_true',
                         help='Whether to sample in the unconditional mode.')
-    parser.add_argument('--num', type=int, default=5, help='The number of sentences to sample.'
-                                                           ' Only triggered in the unconditional mode.')
+    parser.add_argument('--num', type=int, default=5, help='The number of sentences to sample.')
     parser.add_argument('--ctx', default='gpu0', type=str, help='The context to run the sampling demo.')
     args = parser.parse_args()
     ctx = parse_ctx(args.ctx)[0]
@@ -119,7 +118,7 @@ if __name__ == '__main__':
     else:
         print('Please type in the start of the sentence, e.g., Machine Learning')
         context = input('Type in the start of the sentence >>> ')
-        if not context.startwith(' '):
+        if not context.startswith(' '):
             context = ' ' + context
         initial_tokens = mx.nd.array([vocab[tokenizer(context)]], dtype=np.int32, ctx=ctx)
         cond_init_input = initial_tokens[:, -1]
