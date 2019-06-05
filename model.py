@@ -69,7 +69,7 @@ class GPT2SelfAttentionLayer(Block):
         data_pos = mx.nd.arange(prev_len, prev_len + seq_len, ctx=data.context, dtype=data.dtype)
         all_pos = mx.nd.arange(seq_len + prev_len, ctx=data.context, dtype=data.dtype)
         mask = mx.nd.broadcast_lesser_equal(all_pos.reshape((1, -1)), data_pos.reshape((-1, 1)))
-        mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size)
+        mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size * self._num_heads)
 
         # Multi-head attention
         qkv = self._multi_head_qkv_proj(data)  # Shape (batch_size, seq_len, 3 * units)
