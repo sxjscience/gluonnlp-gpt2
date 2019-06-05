@@ -109,6 +109,7 @@ class GPT2FFNLayer(HybridBlock):
             self._out_map = nn.Dense(flatten=False, units=units,
                                      weight_initializer=weight_initializer, bias_initializer=bias_initializer)
             self._act = GELU()
+            self._act._support_erf = False
 
     def hybrid_forward(self, F, data):
         """

@@ -4,7 +4,10 @@ import random
 import gluonnlp as nlp
 import argparse
 import re
+import os
 from model import load_pretrained_GPT2
+
+os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
 
 random.seed(123)
 mx.random.seed(123)
