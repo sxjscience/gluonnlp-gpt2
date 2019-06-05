@@ -83,7 +83,7 @@ def convert_tf_param(gluon_model, tf_ckpt_path, gluon_param_save_path):
             params[gluon_param_name].set_data(param_value)
         loaded[gluon_param_name] = True
     for name in params:
-        if not loaded[name]:
+        if not loaded[name] and name != '_logits_proj.weight':
             print('{} is not loaded!'.format(name))
     gluon_model.save_parameters(gluon_param_save_path)
     mx.nd.waitall()
