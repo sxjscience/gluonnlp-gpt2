@@ -5,6 +5,7 @@ from gluonnlp.vocab import Vocab
 
 def test_gpt2_transformer():
     tokenizer = GPT2Tokenizer('models/345M/bpe_ranks.json')
+    detokenizer = GPT2Detokenizer(tokenizer)
     with io.open('models/345M/vocab.json', 'r', encoding='utf-8') as f:
         vocab = Vocab.from_json(f.read())
     s = ' natural language processing tools such as gluonnlp and torchtext'
@@ -17,3 +18,6 @@ def test_gpt2_transformer():
         assert lhs == rhs
     for lhs, rhs in zip(indices, gt_gpt2_idx):
         assert lhs == rhs
+
+    recovered_sentence = detokenizer([vocab.idx_to_token(i) for i in indices])
+    assert recovered_sentence == s
