@@ -49,8 +49,8 @@ class GPT2SelfAttentionLayer(Block):
             The input data, should have shape (batch_size, seq_len, in_dim)
         states : list of NDArray or None
             The states, contains the previous encoded key/values
-            prev_key (batch_size * num_heads, past_seq_len, ele_units),
-            prev_value (batch_size * num_heads, past_seq_len, ele_units)
+            prev_key (batch_size, num_heads, past_seq_len, ele_units),
+            prev_value (batch_size, num_heads, past_seq_len, ele_units)
             None means no previous states
 
         Returns
@@ -63,7 +63,7 @@ class GPT2SelfAttentionLayer(Block):
         # Generate mask
         if states is not None:
             prev_key, prev_value = states
-            prev_len = prev_key.shape[1]
+            prev_len = prev_key.shape[2]
         else:
             prev_key, prev_value = None, None
             prev_len = 0
@@ -91,7 +91,8 @@ class GPT2SelfAttentionLayer(Block):
         out = mx.nd.transpose(out.reshape((-1, self._num_heads, 0, 0), reverse=True),
                               axes=(0, 2, 1, 3)).reshape((0, 0, -1))
         out = self._out_proj(out)
-        return out, [key, value]
+        return out, [key.reshape((-1, self._num_heads, 0, 0), reverse=True),
+                     value.reshape((-1, self._num_heads, 0, 0), reverse=True)]
 
 
 class GPT2FFNLayer(HybridBlock):
