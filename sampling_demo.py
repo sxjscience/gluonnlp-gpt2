@@ -125,8 +125,9 @@ if __name__ == '__main__':
         cond_init_states = None
         if initial_tokens.shape[1] > 1:
             _, cond_init_states = model(initial_tokens[:, :-1], None)
-        sampler = SequenceSampler(beam_size=args.num, max_length=1024 - initial_tokens.shape[1], eos_id=eos_id, decoder=decoder)
-        samples, scores, valid_length = sampler(cond_init_input, None)
+        sampler = SequenceSampler(beam_size=args.num, max_length=1024 - initial_tokens.shape[1],
+                                  eos_id=eos_id, decoder=decoder)
+        samples, scores, valid_length = sampler(cond_init_input, cond_init_states)
         for i in range(args.num):
             print('-------- Begin Sample {} ---------'.format(i))
             generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, i, :valid_length[0, i]]])
