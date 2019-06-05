@@ -88,6 +88,7 @@ def convert_tf_param(gluon_model, tf_ckpt_path, gluon_param_save_path):
     gluon_model.save_parameters(gluon_param_save_path)
     mx.nd.waitall()
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--src_dir", help="Source path of the model directory in openai/gpt-2", type=str, required=True)
 parser.add_argument("--dst_dir", help="Destination path of the model directory of gluonnlp", type=str, required=True)

@@ -1,7 +1,15 @@
 import mxnet as mx
 import numpy as np
 import gluonnlp as nlp
+import argparse
+import re
 from model import load_pretrained_GPT2
+
+def parse_ctx(ctx_args):
+    ctx = re.findall('([a-z]+)(\d*)', ctx_args)
+    ctx = [(device, int(num)) if len(num) > 0 else (device, 0) for device, num in ctx]
+    ctx = [mx.Context(*ele) for ele in ctx]
+    return ctx
 
 def _expand_to_beam_size(data, beam_size, batch_size, state_info=None):
     """Tile all the states to have batch_size * beam_size on the batch axis.
@@ -79,22 +87,53 @@ class GPT2Decoder(object):
         out, new_states = self._gpt2_model(inputs, states)
         return mx.nd.slice_axis(out, axis=1, begin=0, end=1).reshape((inputs.shape[0], -1)), new_states
 
-
-ctx = mx.gpu()
 nlp.model.sequence_sampler._expand_to_beam_size = _expand_to_beam_size
 from gluonnlp.model.sequence_sampler import SequenceSampler
 
-model, vocab, tokenizer, detokenizer = load_pretrained_GPT2('117M', ctx=ctx)
-model.hybridize()
-decoder = GPT2Decoder(model)
-eos_id = vocab[vocab.eos_token]
-sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=decoder)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Sampling by pretrained GPT-2 model.')
+    parser.add_argument('--model', help='The specific model we need to convert', type=str, choices=['117M', '345M'])
+    parser.add_argument('--unconditional', action='store_true', type=bool,
+                        help='Whether to sample in the unconditional mode.')
+    parser.add_argument('--num', type=int, default=5, help='The number of sentences to sample.'
+                                                           ' Only triggered in the unconditional mode.')
+    parser.add_argument('--ctx', default='gpu0', type=str, help='The context to run the sampling demo.')
+    args = parser.parse_args()
+    ctx = parse_ctx(args.ctx)[0]
+    model, vocab, tokenizer, detokenizer = load_pretrained_GPT2(args.model, ctx=ctx)
+    model.hybridize()
+    decoder = GPT2Decoder(model)
+    eos_id = vocab[vocab.eos_token]
+    sampler = SequenceSampler(beam_size=args.num, max_length=1024, eos_id=eos_id, decoder=decoder)
+    if args.unconditional:
+        unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
+        samples, scores, valid_length = sampler(unconditional_inputs, None)
+        samples = samples.asnumpy()
+        valid_length = valid_length.asnumpy()
+        for i in range(args.num):
+            print('-------- Begin Sample {} ---------'.format(i))
+            generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, i, :valid_length[0, i]]])
+            print(generated_string)
+            print('-------- End Sample {} ---------'.format(i))
+    else:
+        print('Please type in the start of the sentence, e.g., Machine Learning')
+        context = input('Type in the start of the sentence >>> ')
+        if not context.startwith(' '):
+            context = ' ' + context
+        initial_tokens = mx.nd.array([vocab[tokenizer(context)]], dtype=np.int32, ctx=ctx)
+        cond_init_input = initial_tokens[:, -1]
+        cond_init_states = None
+        if initial_tokens.shape[1] > 1:
+            _, cond_init_states = model(initial_tokens[:, :-1], None)
+        samples, scores, valid_length = sampler(cond_init_input, None)
+        for i in range(args.num):
+            print('-------- Begin Sample {} ---------'.format(i))
+            generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, i, :valid_length[0, i]]])
+            if initial_tokens.shape[1] > 1:
+                generated_string = detokenizer(vocab.idx_to_token[ele] for ele in initial_tokens.asnumpy()[0, :-1])\
+                                   + generated_string
+            print(generated_string)
+            print('-------- End Sample {} ---------'.format(i))
 
 
-unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
-samples, scores, valid_length = sampler(unconditional_inputs, None)
-samples = samples.asnumpy()
-valid_length = valid_length.asnumpy()
-
-generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, 0, :valid_length[0, 0]]])
-print(generated_string)
