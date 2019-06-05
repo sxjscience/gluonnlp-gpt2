@@ -1,4 +1,5 @@
 import mxnet as mx
+import io
 import numpy as np
 from mxnet.gluon import Block, HybridBlock
 from mxnet.gluon import nn
@@ -217,3 +218,40 @@ def GPT2_117M():
 
 def GPT2_345M():
     return GPT2Model(units=1024, vocab_size=50257, max_seq_len=1024, num_heads=16, num_layers=24)
+
+
+def load_pretrained_GPT2(model_name='117M', ctx=None):
+    """
+
+    Parameters
+    ----------
+    model_name : str
+        Can be 117M or 345M
+
+    Returns
+    -------
+    model : GPT2Model
+    vocab : Vocab
+    tokenizer : GPT2Tokenizer
+    detokenizer : GPT2Detokenizer
+    """
+    from gluonnlp.vocab import Vocab
+    from transforms import GPT2Tokenizer, GPT2Detokenizer
+    if model_name == '117M':
+        model = GPT2_117M()
+        model.load_parameters(filename='models/117M/model.params', ctx=ctx)
+        tokenizer = GPT2Tokenizer(bpe_ranks_path='models/117M/bpe_ranks.json')
+        detokenizer = GPT2Detokenizer(tokenizer)
+        with io.open('models/117M/vocab.json', 'r', encoding='utf-8') as f:
+            vocab = Vocab.from_json(f.read())
+    elif model_name == '345M':
+        model = GPT2_345M()
+        model.load_parameters(filename='models/345M/model.params', ctx=ctx)
+        tokenizer = GPT2Tokenizer(bpe_ranks_path='models/345M/bpe_ranks.json')
+        detokenizer = GPT2Detokenizer(tokenizer)
+        with io.open('models/345M/vocab.json', 'r', encoding='utf-8') as f:
+            vocab = Vocab.from_json(f.read())
+    else:
+        raise NotImplementedError('{} is not found! Try "load_pretrained_GPT2(\'117M\')" or '
+                                  '"load_pretrained_GPT2(\'345M\')"')
+    return model, vocab, tokenizer, detokenizer
