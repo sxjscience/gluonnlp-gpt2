@@ -30,12 +30,14 @@ class GPT2SelfAttentionLayer(Block):
         with self.name_scope():
             self._multi_head_qkv_proj = nn.Dense(units=units * 3, flatten=False, use_bias=True,
                                                  weight_initializer=weight_initializer,
-                                                 bias_initializer=bias_initializer)
-            self._base_attn_cell = DotProductAttentionCell(scaled=True, dropout=dropout)
+                                                 bias_initializer=bias_initializer,
+                                                 prefix='qkv_proj_')
+            self._base_attn_cell = DotProductAttentionCell(scaled=True, dropout=dropout, prefix='attn_')
             self._dropout_layer = nn.Dropout(dropout)
             self._out_proj = nn.Dense(units=units, flatten=False, use_bias=True,
                                       weight_initializer=weight_initializer,
-                                      bias_initializer=bias_initializer)
+                                      bias_initializer=bias_initializer,
+                                      prefix='out_proj_')
 
     def forward(self, data, states=None):
         """
