@@ -2,8 +2,9 @@ import mxnet as mx
 import numpy as np
 from mxnet.gluon import Block, HybridBlock
 from mxnet.gluon import nn
-from gluonnlp.attention_cell import DotProductAttentionCell, MultiHeadAttentionCell, _masked_softmax
+from gluonnlp.attention_cell import DotProductAttentionCell
 from gluonnlp.block import GELU
+
 
 class GPT2SelfAttentionLayer(Block):
     def __init__(self, units, num_heads, dropout=0.0,
@@ -45,45 +46,48 @@ class GPT2SelfAttentionLayer(Block):
             The input data, should have shape (batch_size, seq_len, in_dim)
         states : list of NDArray or None
             The states, contains the previous encoded key/values
-            prev_key (batch_size * num_heads, ele_units, past_seq_len),
-            prev_value (batch_size * num_heads, ele_units, past_seq_len)
+            prev_key (batch_size * num_heads, past_seq_len, ele_units),
+            prev_value (batch_size * num_heads, past_seq_len, ele_units)
             None means no previous states
 
         Returns
         -------
-
+        out : mx.nd.NDArray
+        new_states :
         """
         batch_size = data.shape[0]
-        seq_length = data.shape[1]
+        seq_len = data.shape[1]
         # Generate mask
         if states is not None:
             prev_key, prev_value = states
-            prev_seq_length = prev_key.shape[-1]
-            data_pos = mx.nd.arange(prev_seq_length, prev_seq_length + seq_length, ctx=data.context, dtype=data.dtype)
-            all_pos = mx.nd.arange(seq_length + prev_seq_length, ctx=data.context, dtype=data.dtype)
-            mask = mx.nd.broadcast_lesser_equal(all_pos.reshape((1, -1)), data_pos.reshape((-1, 1)))
-            mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size)
+            prev_len = prev_key.shape[1]
         else:
-            prev_key, prev_value, mask = None, None, None
+            prev_key, prev_value = None, None
+            prev_len = 0
+        data_pos = mx.nd.arange(prev_len, prev_len + seq_len, ctx=data.context, dtype=data.dtype)
+        all_pos = mx.nd.arange(seq_len + prev_len, ctx=data.context, dtype=data.dtype)
+        mask = mx.nd.broadcast_lesser_equal(all_pos.reshape((1, -1)), data_pos.reshape((-1, 1)))
+        mask = mx.nd.broadcast_axes(mx.nd.expand_dims(mask, axis=0), axis=0, size=batch_size)
 
         # Multi-head attention
-        F = mx.nd
         qkv = self._multi_head_qkv_proj(data)  # Shape (batch_size, seq_len, 3 * units)
-        qkv = F.swapaxes(qkv, 1, 2)  # Shape (batch_size, 3 * units, seq_len)
-        query, key, value = F.split(qkv, num_outputs=3, axis=1)  # Each has shape (batch_size, units, seq_len)
+        qkv = mx.nd.swapaxes(qkv, 1, 2)  # Shape (batch_size, 3 * units, seq_len)
+        query, key, value = mx.nd.split(qkv, num_outputs=3, axis=1)  # Each has shape (batch_size, units, seq_len)
         # Map each to have shape (batch_size * num_head, ele_units, seq_len)
         query = query.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
         key = key.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
         value = value.reshape(shape=(0, -4, self._num_heads, -1, 0)).reshape(shape=(-1, 0, 0), reverse=True)
-        query = F.contrib.div_sqrt_dim(F.swapaxes(query, 1, 2))  # Shape(batch_size * num_heads, seq_len, ele_units)
-        key = F.concat(prev_key, key, dim=2)  # Shape (batch_size * num_heads, all_len, ele_units)
-        value = F.concat(prev_value, value, dim=2)
-        att_score = F.batch_dot(query, key, transpose_b=True)  # Shape(batch_size * num_heads, seq_len, all_len)
-        att_weights = self._dropout_layer(_masked_softmax(F, att_score, mask, np.float32))
-        multi_head_out = F.batch_dot(att_weights, value)  # Shape(batch_size * num_heads, seq_len, ele_units)
-        multi_head_out = multi_head_out.reshape((-1, self._num_heads, 0, 0), reverse=True)
-        multi_head_out = F.transpose(multi_head_out, axes=(0, 2, 1, 3)).reshape((0, 0, -1))
-        out = self._out_proj(multi_head_out)
+        query = mx.nd.swapaxes(query, 1, 2)
+        key = mx.nd.swapaxes(key, 1, 2)
+        value = mx.nd.swapaxes(value, 1, 2)
+        if prev_key is not None:
+            key = mx.nd.concat(prev_key, key, dim=1)  # Shape (batch_size * num_heads, all_len, ele_units)
+        if prev_value is not None:
+            value = mx.nd.concat(prev_value, value, dim=1)
+        out, _ = self._base_attn_cell(query, key, value, mask)  # Shape (batch_size * num_heads, all_len, ele_units)
+        out = mx.nd.transpose(out.reshape((-1, self._num_heads, 0, 0), reverse=True),
+                              axes=(0, 2, 1, 3)).reshape((0, 0, -1))
+        out = self._out_proj(out)
         return out, [key, value]
 
 
@@ -119,14 +123,13 @@ class GPT2FFNLayer(HybridBlock):
 
 
 class GPT2Model(Block):
-    def __init__(self, units, embed_dim, vocab_size, max_seq_len, num_layers, num_heads, dropout=0.0,
+    def __init__(self, units, vocab_size, max_seq_len, num_layers, num_heads, dropout=0.0,
                  prefix=None, params=None):
         """
 
         Parameters
         ----------
         units : int
-        embed_dim: int
         vocab_size : int
         max_seq_len : int
             The maximum sequence length
@@ -142,13 +145,16 @@ class GPT2Model(Block):
         """
         super(GPT2Model, self).__init__(prefix=prefix, params=params)
         self._units = units
-        self._embed_dim = embed_dim
         self._max_seq_len = max_seq_len
         self._num_layers = num_layers
         self._num_heads = num_heads
         with self.name_scope():
-            self._pos_embed = nn.Embedding(input_dim=max_seq_len, output_dim=embed_dim, name='pos_embed_')
-            self._embed = nn.Embedding(input_dim=vocab_size, output_dim=embed_dim, name='embed_')
+            self._pos_embed = nn.Embedding(input_dim=max_seq_len, output_dim=units, name='pos_embed_',
+                                           weight_initializer=mx.init.Normal(0.01))
+            self._embed = nn.Embedding(input_dim=vocab_size, output_dim=units, name='embed_',
+                                       weight_initializer=mx.init.Normal(0.02))
+            self._logits_proj = nn.Dense(units=vocab_size, in_units=units, use_bias=False,
+                                         params=self._embed.params)
             self._self_attention_layers = nn.Sequential()
             self._ffn_layers = nn.HybridSequential()
             self._attn_ln = nn.HybridSequential()
@@ -160,18 +166,44 @@ class GPT2Model(Block):
                 self._ffn_layers.add(GPT2FFNLayer(units=units, hidden_size=units * 4, prefix='ffn{}_'.format(i)))
                 self._attn_ln.add(nn.LayerNorm(prefix='attn_ln{}_'.format(i)))
                 self._ffn_ln.add(nn.LayerNorm(prefix='ffn_ln{}_'.format(i)))
+                self._final_ln = nn.LayerNorm(prefix='final_ln{}_'.format(i))
 
     def forward(self, data, states=None):
         """
 
         Parameters
         ----------
-        data
-        states
+        data : NDArray
+            Shape (batch_size, seq_len)
+        states : list of NDArray or None
 
         Returns
         -------
-        out
-        new_states
+        out : NDArray
+            Shape (batch_size, seq_len, vocab_size)
+        new_states : list of NDArray
         """
         new_states = []
+        batch_size, seq_len = data.shape[0], data.shape[1]
+        if states is not None:
+            prev_len = states[0].shape[1]
+        else:
+            prev_len = 0
+        assert seq_len + prev_len <= self._max_seq_len
+        data_pos = mx.nd.arange(prev_len, prev_len + seq_len, ctx=data.context, dtype=np.float32)
+        data_pos =  mx.nd.broadcast_axes(mx.nd.expand_dims(data_pos, axis=0), axis=0, size=batch_size)
+        out = self._embed(data) + self._pos_embed(data_pos)
+        for i in range(self._num_layers):
+            attn_layer = self._self_attention_layers[i]
+            ffn_layer = self._ffn_layers[i]
+            attn_ln = self._attn_ln[i]
+            ffn_ln = self._ffn_ln[i]
+            layer_states = None if states is None else states[2*i:(2*i + 2)]
+            h, new_layer_states = attn_layer(attn_ln(out), layer_states)
+            out = out + h
+            h = ffn_layer(ffn_ln(out))
+            out = out + h
+            new_states.extend(new_layer_states)
+        out = self._final_ln(out)
+        logits = self._logits_proj(out)
+        return logits, new_states
