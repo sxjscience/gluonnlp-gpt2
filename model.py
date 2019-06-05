@@ -3,7 +3,7 @@ import numpy as np
 from mxnet.gluon import Block, HybridBlock
 from mxnet.gluon import nn
 from gluonnlp.model.attention_cell import DotProductAttentionCell
-from gluonnlp.block import GELU
+from gluonnlp.model.block import GELU
 
 
 class GPT2SelfAttentionLayer(Block):
