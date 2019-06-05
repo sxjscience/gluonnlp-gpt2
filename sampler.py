@@ -77,7 +77,7 @@ class GPT2Decoder(object):
     def __call__(self, inputs, states):
         inputs = mx.nd.expand_dims(inputs, axis=1)
         out, new_states = self._gpt2_model(inputs, states)
-        return mx.nd.slice_axis(out, axis=1, begin=0, end=1).reshape((inputs.shape[0], -1))
+        return mx.nd.slice_axis(out, axis=1, begin=0, end=1).reshape((inputs.shape[0], -1)), new_states
 
 
 ctx = mx.gpu()
