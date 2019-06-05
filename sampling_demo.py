@@ -144,7 +144,7 @@ if __name__ == '__main__':
             valid_length = valid_length.asnumpy()
             generated_string = detokenizer([vocab.idx_to_token[ele] for ele in samples[0, 0, :valid_length[0, 0]]])
             if initial_tokens.shape[1] > 1:
-                generated_string = detokenizer(vocab.idx_to_token[ele] for ele in initial_tokens.asnumpy()[0, :-1])\
+                generated_string = detokenizer(vocab.idx_to_token[ele] for ele in initial_tokens.asnumpy()[0])\
                                    + generated_string
             print(generated_string)
             print('-------- End Sample {} ---------'.format(i))
