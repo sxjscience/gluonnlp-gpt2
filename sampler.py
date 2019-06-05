@@ -71,7 +71,7 @@ def _expand_to_beam_size(data, beam_size, batch_size, state_info=None):
         raise NotImplementedError
 
 ctx = mx.gpu()
-nlp.sequence_sampler._expand_to_beam_size = _expand_to_beam_size
+nlp.model.sequence_sampler._expand_to_beam_size = _expand_to_beam_size
 from gluonnlp.model.sequence_sampler import SequenceSampler
 
 model, vocab, tokenizer, detokenizer = load_pretrained_GPT2('117M', ctx=ctx)
