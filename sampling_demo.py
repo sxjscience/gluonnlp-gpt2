@@ -94,7 +94,7 @@ from gluonnlp.model.sequence_sampler import SequenceSampler
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Sampling by pretrained GPT-2 model.')
     parser.add_argument('--model', help='The specific model we need to convert', type=str, choices=['117M', '345M'])
-    parser.add_argument('--unconditional', action='store_true', type=bool,
+    parser.add_argument('--unconditional', action='store_true',
                         help='Whether to sample in the unconditional mode.')
     parser.add_argument('--num', type=int, default=5, help='The number of sentences to sample.'
                                                            ' Only triggered in the unconditional mode.')
