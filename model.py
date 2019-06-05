@@ -2,7 +2,7 @@ import mxnet as mx
 import numpy as np
 from mxnet.gluon import Block, HybridBlock
 from mxnet.gluon import nn
-from gluonnlp.attention_cell import DotProductAttentionCell
+from gluonnlp.model.attention_cell import DotProductAttentionCell
 from gluonnlp.block import GELU
 
 
