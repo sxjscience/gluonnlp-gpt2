@@ -76,7 +76,8 @@ class GPT2Decoder(object):
 
     def __call__(self, inputs, states):
         inputs = mx.nd.expand_dims(inputs, axis=1)
-        return self._gpt2_model(inputs, states)
+        out, new_states = self._gpt2_model(inputs, states)
+        return mx.nd.slice_axis(out, axis=1, begin=0, end=1).reshape((inputs.shape[0], -1))
 
 
 ctx = mx.gpu()
@@ -84,6 +85,7 @@ nlp.model.sequence_sampler._expand_to_beam_size = _expand_to_beam_size
 from gluonnlp.model.sequence_sampler import SequenceSampler
 
 model, vocab, tokenizer, detokenizer = load_pretrained_GPT2('117M', ctx=ctx)
+model.hybridize()
 decoder = GPT2Decoder(model)
 eos_id = vocab[vocab.eos_token]
 sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=decoder)
