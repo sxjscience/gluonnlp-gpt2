@@ -78,6 +78,6 @@ model, vocab, tokenizer, detokenizer = load_pretrained_GPT2('117M', ctx=ctx)
 eos_id = vocab[vocab.eos_token]
 sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=model)
 
-unconditional_inputs = mx.nd.array([[eos_id]], dtype=np.int32, ctx=ctx)
+unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
 samples, scores, valid_length = sampler(unconditional_inputs, None)
 print(samples)
