@@ -155,7 +155,7 @@ class GPT2Model(Block):
                                            weight_initializer=mx.init.Normal(0.01))
             self._embed = nn.Embedding(input_dim=vocab_size, output_dim=units, prefix='embed_',
                                        weight_initializer=mx.init.Normal(0.02))
-            self._logits_proj = nn.Dense(units=vocab_size, in_units=units, use_bias=False,
+            self._logits_proj = nn.Dense(units=vocab_size, in_units=units, use_bias=False, flatten=False,
                                          params=self._embed.params)
             self._self_attention_layers = nn.Sequential()
             self._ffn_layers = nn.HybridSequential()
