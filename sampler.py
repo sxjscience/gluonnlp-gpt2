@@ -70,13 +70,24 @@ def _expand_to_beam_size(data, beam_size, batch_size, state_info=None):
     else:
         raise NotImplementedError
 
+class GPT2Decoder(object):
+    def __init__(self, gpt2_model):
+        self._gpt2_model = gpt2_model
+
+    def __call__(self, inputs, states):
+        inputs = mx.nd.expand_dims(inputs, axis=1)
+        return self._gpt2_model(inputs, states)
+
+
 ctx = mx.gpu()
 nlp.model.sequence_sampler._expand_to_beam_size = _expand_to_beam_size
 from gluonnlp.model.sequence_sampler import SequenceSampler
 
 model, vocab, tokenizer, detokenizer = load_pretrained_GPT2('117M', ctx=ctx)
+decoder = GPT2Decoder(model)
 eos_id = vocab[vocab.eos_token]
-sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=model)
+sampler = SequenceSampler(beam_size=1, max_length=1024, eos_id=eos_id, decoder=decoder)
+
 
 unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
 samples, scores, valid_length = sampler(unconditional_inputs, None)
