@@ -76,7 +76,11 @@ def convert_tf_param(gluon_model, tf_ckpt_path, gluon_param_save_path):
                 else:
                     gluon_param_name = rhs
         assert gluon_param_name is not None
-        params[gluon_param_name].set_data(mx.nd.array(param_value))
+        print('{} --> {}'.format(name, gluon_param_name))
+        if param_value.shape != params[gluon_param_name].shape:
+            params[gluon_param_name].set_data(mx.nd.array(param_value[0].T))
+        else:
+            params[gluon_param_name].set_data(param_value)
         loaded[gluon_param_name] = True
     for name in params:
         if not loaded[name]:
