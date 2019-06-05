@@ -104,8 +104,8 @@ if __name__ == '__main__':
     model.hybridize()
     decoder = GPT2Decoder(model)
     eos_id = vocab[vocab.eos_token]
-    sampler = SequenceSampler(beam_size=args.num, max_length=1024, eos_id=eos_id, decoder=decoder)
     if args.unconditional:
+        sampler = SequenceSampler(beam_size=args.num, max_length=1024, eos_id=eos_id, decoder=decoder)
         unconditional_inputs = mx.nd.array([eos_id], dtype=np.int32, ctx=ctx)
         samples, scores, valid_length = sampler(unconditional_inputs, None)
         samples = samples.asnumpy()
@@ -125,6 +125,7 @@ if __name__ == '__main__':
         cond_init_states = None
         if initial_tokens.shape[1] > 1:
             _, cond_init_states = model(initial_tokens[:, :-1], None)
+        sampler = SequenceSampler(beam_size=args.num, max_length=1024 - initial_tokens.shape[1], eos_id=eos_id, decoder=decoder)
         samples, scores, valid_length = sampler(cond_init_input, None)
         for i in range(args.num):
             print('-------- Begin Sample {} ---------'.format(i))
