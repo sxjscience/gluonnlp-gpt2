@@ -124,7 +124,7 @@ if __name__ == '__main__':
             print(generated_string)
             print('-------- End Sample {} ---------'.format(i))
     else:
-        print('Please type in the start of the sentence, e.g., Machine Learning')
+        print('Please type in the start of the sentence, e.g., deep learning and natural language processing ')
         context = input('Type in the start of the sentence >>> ')
         if not context.startswith(' '):
             context = ' ' + context
