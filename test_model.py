@@ -20,5 +20,5 @@ def test_pretrained_gpt2(ctx=None):
     logits, new_states = model(nd_indices, None)
     print(logits)
 
-test_pretrained_gpt2()
+test_pretrained_gpt2(ctx=mx.gpu())
 
