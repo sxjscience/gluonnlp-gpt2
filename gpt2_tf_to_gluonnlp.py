@@ -88,22 +88,22 @@ def convert_tf_param(gluon_model, tf_ckpt_path, gluon_param_save_path):
     gluon_model.save_parameters(gluon_param_save_path)
     mx.nd.waitall()
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--src_dir", help="Source path of the model directory in openai/gpt-2", type=str, required=True)
+    parser.add_argument("--dst_dir", help="Destination path of the model directory of gluonnlp", type=str, required=True)
+    parser.add_argument('--model', help='The specific model we need to convert', type=str, choices=['117M', '345M'])
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--src_dir", help="Source path of the model directory in openai/gpt-2", type=str, required=True)
-parser.add_argument("--dst_dir", help="Destination path of the model directory of gluonnlp", type=str, required=True)
-parser.add_argument('--model', help='The specific model we need to convert', type=str, choices=['117M', '345M'])
-
-args = parser.parse_args()
-print('Convert {} to {}'.format(os.path.join(args.src_dir, args.model),
-                                os.path.join(args.dst_dir, args.model)))
-convert_vocab_bpe(os.path.join(args.src_dir, args.model),
-                  os.path.join(args.dst_dir, args.model))
-if args.model == '117M':
-    gluon_model = GPT2_117M()
-elif args.model == '345M':
-    gluon_model = GPT2_345M()
-else:
-    raise NotImplementedError
-convert_tf_param(gluon_model, os.path.join(args.src_dir, args.model, 'model.ckpt'),
-                 os.path.join(args.dst_dir, args.model, 'model.params'))
+    args = parser.parse_args()
+    print('Convert {} to {}'.format(os.path.join(args.src_dir, args.model),
+                                    os.path.join(args.dst_dir, args.model)))
+    convert_vocab_bpe(os.path.join(args.src_dir, args.model),
+                      os.path.join(args.dst_dir, args.model))
+    if args.model == '117M':
+        gluon_model = GPT2_117M()
+    elif args.model == '345M':
+        gluon_model = GPT2_345M()
+    else:
+        raise NotImplementedError
+    convert_tf_param(gluon_model, os.path.join(args.src_dir, args.model, 'model.ckpt'),
+                     os.path.join(args.dst_dir, args.model, 'model.params'))
