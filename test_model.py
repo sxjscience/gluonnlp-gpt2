@@ -27,7 +27,7 @@ def test_pretrained_gpt2(ctx=None):
     indices = vocab[tokenizer(sentence)]
     nd_indices = mx.nd.expand_dims(mx.nd.array(indices, ctx=ctx), axis=0)
     logits, new_states = model(nd_indices, None)
-    npt.assert_allclose(logits.asnumpy(), gt_logits, 1E-3, 1E-3)
+    npt.assert_allclose(logits.asnumpy(), gt_logits, 1E-2, 1E-2)
 
 test_pretrained_gpt2(ctx=mx.gpu())
 
