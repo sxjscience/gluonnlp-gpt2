@@ -8,7 +8,7 @@ def test_pretrained_gpt2(ctx=None):
     model = GPT2_117M()
     model.initialize(ctx=ctx)
     model.hybridize()
-    print(model)
+    model.load_parameters(filename='models/117M/model.params')
 
     tokenizer = GPT2Tokenizer(bpe_ranks_path='models/117M/bpe_ranks.json')
     detokenizer = GPT2Detokenizer(tokenizer)
