@@ -11,8 +11,9 @@ python download_model.py 117M
 python download_model.py 345M
 ```
 
-Step-2: Convert the model to GluonNLP
+Step-2: Convert the model to GluonNLP (First change back the directory to be gluonnlp-gpt2)
 ```bazaar
+cd ..
 python gpt2_tf_to_gluonnlp.py --src_dir gpt-2/models --dst_dir models --model 117M
 python gpt2_tf_to_gluonnlp.py --src_dir gpt-2/models --dst_dir models --model 345M
 
