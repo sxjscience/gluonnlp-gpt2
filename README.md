@@ -39,8 +39,8 @@ python sampling_demo.py --model 117M --unconditional
 
 You can also try the large model with 345M parameters
 ```bazaar
-python sampling_demo.py --model 117M
-python sampling_demo.py --model 117M --unconditional
+python sampling_demo.py --model 345M
+python sampling_demo.py --model 345M --unconditional
 
 ```
 
