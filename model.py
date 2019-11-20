@@ -192,7 +192,7 @@ class GPT2Model(Block):
         new_states = []
         batch_size, seq_len = data.shape[0], data.shape[1]
         if states is not None:
-            prev_len = states[0].shape[1]
+            prev_len = states[0].shape[2]
         else:
             prev_len = 0
         assert seq_len + prev_len <= self._max_seq_len
